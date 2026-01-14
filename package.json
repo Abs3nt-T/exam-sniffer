@@ -7,15 +7,18 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "process-pdfs": "tsx scripts/process-pdfs.ts",
-    "setup-db": "tsx scripts/setup-db.ts"
+    "process-pdfs": "node scripts/process-pdfs.cjs",
+    "setup-db": "node scripts/setup-db.cjs"
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
+    "@types/pg": "^8.16.0",
     "@vercel/postgres": "^0.10.0",
+    "dotenv": "^17.2.3",
     "katex": "^0.16.11",
     "next": "^16.1.1",
     "pdf-parse": "^1.1.1",
+    "pg": "^8.17.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

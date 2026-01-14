@@ -1,9 +1,11 @@
-import "dotenv/config";
-import fs from "fs";
-import path from "path";
-import pdf from "pdf-parse";
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import { sql } from "@vercel/postgres";
+// Pure CommonJS script for processing PDFs
+require("dotenv").config({ path: ".env.local" });
+
+const fs = require("fs");
+const path = require("path");
+const pdf = require("pdf-parse");
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { Pool } = require("pg");
 
 // Configuration
 const PDF_DIR = path.join(process.cwd(), "pdfs");
@@ -11,15 +13,27 @@ const CHUNK_SIZE = 700; // tokens (roughly)
 const CHUNK_OVERLAP = 100;
 
 // Initialize Gemini
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
 const visionModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
 
+// Initialize Postgres
+const pool = new Pool({
+    connectionString: process.env.POSTGRES_URL,
+    ssl: { rejectUnauthorized: false },
+});
+
+/**
+ * Sanitize text to remove null bytes (keeps formulas intact)
+ */
+function sanitizeText(text) {
+    return text.replace(/\x00/g, "");
+}
+
 /**
  * Extract text from a PDF file
- * For scanned PDFs, uses Gemini Vision OCR
  */
-async function extractTextFromPDF(filePath: string): Promise<{ text: string; numPages: number }> {
+async function extractTextFromPDF(filePath) {
     const buffer = fs.readFileSync(filePath);
 
     try {
@@ -29,14 +43,14 @@ async function extractTextFromPDF(filePath: string): Promise<{ text: string; num
         // Check if we got meaningful text
         if (data.text.trim().length > 100) {
             console.log(`   📄 Extracted text directly (${data.numpages} pages)`);
-            return { text: data.text, numPages: data.numpages };
+            return { text: sanitizeText(data.text), numPages: data.numpages };
         }
 
         // If not much text, likely a scanned PDF - use OCR
         console.log(`   🔍 PDF appears to be scanned, using Gemini Vision OCR...`);
         return await extractWithOCR(buffer);
 
-    } catch {
+    } catch (err) {
         console.log(`   🔍 Falling back to Gemini Vision OCR...`);
         return await extractWithOCR(buffer);
     }
@@ -45,7 +59,7 @@ async function extractTextFromPDF(filePath: string): Promise<{ text: string; num
 /**
  * Use Gemini Vision to OCR a PDF
  */
-async function extractWithOCR(pdfBuffer: Buffer): Promise<{ text: string; numPages: number }> {
+async function extractWithOCR(pdfBuffer) {
     const base64 = pdfBuffer.toString("base64");
 
     const result = await visionModel.generateContent([
@@ -68,8 +82,8 @@ async function extractWithOCR(pdfBuffer: Buffer): Promise<{ text: string; numPag
 /**
  * Split text into overlapping chunks
  */
-function splitIntoChunks(text: string, chunkSize: number = CHUNK_SIZE, overlap: number = CHUNK_OVERLAP): string[] {
-    const chunks: string[] = [];
+function splitIntoChunks(text, chunkSize = CHUNK_SIZE, overlap = CHUNK_OVERLAP) {
+    const chunks = [];
     const sentences = text.split(/(?<=[.!?])\s+/);
 
     let currentChunk = "";
@@ -101,7 +115,7 @@ function splitIntoChunks(text: string, chunkSize: number = CHUNK_SIZE, overlap: 
 /**
  * Generate embedding for text
  */
-async function generateEmbedding(text: string): Promise<number[]> {
+async function generateEmbedding(text) {
     const result = await embeddingModel.embedContent(text);
     return result.embedding.values;
 }
@@ -109,7 +123,7 @@ async function generateEmbedding(text: string): Promise<number[]> {
 /**
  * Process a single PDF file
  */
-async function processPDF(filePath: string): Promise<void> {
+async function processPDF(filePath) {
     const filename = path.basename(filePath);
     console.log(`\n📚 Processing: ${filename}`);
 
@@ -122,11 +136,10 @@ async function processPDF(filePath: string): Promise<void> {
     console.log(`   🔪 Split into ${chunks.length} chunks`);
 
     // Insert document record
-    const docResult = await sql`
-    INSERT INTO documents (filename, total_chunks)
-    VALUES (${filename}, ${chunks.length})
-    RETURNING id
-  `;
+    const docResult = await pool.query(
+        "INSERT INTO documents (filename, total_chunks) VALUES ($1, $2) RETURNING id",
+        [filename, chunks.length]
+    );
     const documentId = docResult.rows[0].id;
 
     // Process each chunk
@@ -142,10 +155,10 @@ async function processPDF(filePath: string): Promise<void> {
         const pageNumber = Math.ceil((i / chunks.length) * numPages);
 
         // Insert chunk
-        await sql`
-      INSERT INTO chunks (document_id, content, page_number, chunk_index, embedding)
-      VALUES (${documentId}, ${chunk}, ${pageNumber}, ${i}, ${embeddingStr}::vector)
-    `;
+        await pool.query(
+            "INSERT INTO chunks (document_id, content, page_number, chunk_index, embedding) VALUES ($1, $2, $3, $4, $5::vector)",
+            [documentId, chunk, pageNumber, i, embeddingStr]
+        );
 
         // Progress indicator
         if ((i + 1) % 10 === 0 || i === chunks.length - 1) {
@@ -153,7 +166,7 @@ async function processPDF(filePath: string): Promise<void> {
         }
 
         // Rate limiting - Gemini has limits
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 200));
     }
 
     console.log(`\n   🎉 ${filename} complete!`);
@@ -193,7 +206,12 @@ async function main() {
     const startTime = Date.now();
 
     for (const pdfFile of pdfFiles) {
-        await processPDF(pdfFile);
+        try {
+            await processPDF(pdfFile);
+        } catch (err) {
+            console.error(`\n❌ Error processing ${path.basename(pdfFile)}:`, err.message);
+            console.log("   Continuing with next file...\n");
+        }
     }
 
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
@@ -203,6 +221,11 @@ async function main() {
     console.log(`⏱️  Total time: ${elapsed} seconds`);
     console.log("=============================\n");
     console.log("Next step: Deploy to Vercel and test your app!");
+
+    await pool.end();
 }
 
-main().catch(console.error);
+main().catch(err => {
+    console.error("Fatal error:", err);
+    process.exit(1);
+});
