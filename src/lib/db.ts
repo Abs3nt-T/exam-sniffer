@@ -1,4 +1,10 @@
-import { sql } from "@vercel/postgres";
+import { Pool } from "pg";
+
+// Create a connection pool
+const pool = new Pool({
+    connectionString: process.env.POSTGRES_URL,
+    ssl: { rejectUnauthorized: false },
+});
 
 export interface Chunk {
     id: number;
@@ -18,19 +24,20 @@ export async function searchSimilarChunks(
 ): Promise<Chunk[]> {
     const embeddingStr = `[${embedding.join(",")}]`;
 
-    const result = await sql<Chunk>`
-    SELECT 
-      c.id,
-      c.document_id,
-      c.content,
-      c.page_number,
-      c.chunk_index,
-      d.filename
-    FROM chunks c
-    JOIN documents d ON c.document_id = d.id
-    ORDER BY c.embedding <=> ${embeddingStr}::vector
-    LIMIT ${limit}
-  `;
+    const result = await pool.query<Chunk>(
+        `SELECT 
+            c.id,
+            c.document_id,
+            c.content,
+            c.page_number,
+            c.chunk_index,
+            d.filename
+        FROM chunks c
+        JOIN documents d ON c.document_id = d.id
+        ORDER BY c.embedding <=> $1::vector
+        LIMIT $2`,
+        [embeddingStr, limit]
+    );
 
     return result.rows;
 }
@@ -39,11 +46,12 @@ export async function searchSimilarChunks(
  * Insert a new document record
  */
 export async function insertDocument(filename: string, totalChunks: number): Promise<number> {
-    const result = await sql`
-    INSERT INTO documents (filename, total_chunks)
-    VALUES (${filename}, ${totalChunks})
-    RETURNING id
-  `;
+    const result = await pool.query(
+        `INSERT INTO documents (filename, total_chunks)
+        VALUES ($1, $2)
+        RETURNING id`,
+        [filename, totalChunks]
+    );
     return result.rows[0].id;
 }
 
@@ -59,10 +67,11 @@ export async function insertChunk(
 ): Promise<void> {
     const embeddingStr = `[${embedding.join(",")}]`;
 
-    await sql`
-    INSERT INTO chunks (document_id, content, page_number, chunk_index, embedding)
-    VALUES (${documentId}, ${content}, ${pageNumber}, ${chunkIndex}, ${embeddingStr}::vector)
-  `;
+    await pool.query(
+        `INSERT INTO chunks (document_id, content, page_number, chunk_index, embedding)
+        VALUES ($1, $2, $3, $4, $5::vector)`,
+        [documentId, content, pageNumber, chunkIndex, embeddingStr]
+    );
 }
 
 /**
@@ -70,7 +79,7 @@ export async function insertChunk(
  */
 export async function checkDatabase(): Promise<boolean> {
     try {
-        await sql`SELECT 1 FROM documents LIMIT 1`;
+        await pool.query("SELECT 1 FROM documents LIMIT 1");
         return true;
     } catch {
         return false;
@@ -81,7 +90,7 @@ export async function checkDatabase(): Promise<boolean> {
  * Get document count
  */
 export async function getDocumentCount(): Promise<number> {
-    const result = await sql`SELECT COUNT(*) as count FROM documents`;
+    const result = await pool.query("SELECT COUNT(*) as count FROM documents");
     return parseInt(result.rows[0].count);
 }
 
@@ -89,6 +98,6 @@ export async function getDocumentCount(): Promise<number> {
  * Get chunk count
  */
 export async function getChunkCount(): Promise<number> {
-    const result = await sql`SELECT COUNT(*) as count FROM chunks`;
+    const result = await pool.query("SELECT COUNT(*) as count FROM chunks");
     return parseInt(result.rows[0].count);
 }

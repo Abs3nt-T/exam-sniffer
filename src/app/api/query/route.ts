@@ -63,8 +63,11 @@ export async function POST(request: NextRequest) {
         });
     } catch (error) {
         console.error("Query error:", error);
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        const errorStack = error instanceof Error ? error.stack : "";
+        console.error("Error details:", { errorMessage, errorStack });
         return NextResponse.json(
-            { error: "Si è verificato un errore. Riprova più tardi." },
+            { error: "Si è verificato un errore. Riprova più tardi.", details: errorMessage },
             { status: 500 }
         );
     }
