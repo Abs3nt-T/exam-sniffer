@@ -1,0 +1,32 @@
+{
+  "name": "exam-sniffer",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "process-pdfs": "tsx scripts/process-pdfs.ts",
+    "setup-db": "tsx scripts/setup-db.ts"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.21.0",
+    "@vercel/postgres": "^0.10.0",
+    "katex": "^0.16.11",
+    "next": "^16.1.1",
+    "pdf-parse": "^1.1.1",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/pdf-parse": "^1.1.4",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "eslint": "^9.0.0",
+    "eslint-config-next": "15.1.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}
