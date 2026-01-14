@@ -24,13 +24,6 @@ const pool = new Pool({
 });
 
 /**
- * Sanitize text to remove null bytes (keeps formulas intact)
- */
-function sanitizeText(text) {
-    return text.replace(/\x00/g, "");
-}
-
-/**
  * Extract text from a PDF file
  */
 async function extractTextFromPDF(filePath) {
@@ -43,7 +36,7 @@ async function extractTextFromPDF(filePath) {
         // Check if we got meaningful text
         if (data.text.trim().length > 100) {
             console.log(`   📄 Extracted text directly (${data.numpages} pages)`);
-            return { text: sanitizeText(data.text), numPages: data.numpages };
+            return { text: data.text, numPages: data.numpages };
         }
 
         // If not much text, likely a scanned PDF - use OCR
