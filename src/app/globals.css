@@ -103,7 +103,8 @@ button {
 }
 
 /* Input Styles */
-.input, .textarea {
+.input,
+.textarea {
   width: 100%;
   padding: 1rem;
   font-size: 1rem;
@@ -114,7 +115,8 @@ button {
   transition: border-color 0.2s ease;
 }
 
-.input:focus, .textarea:focus {
+.input:focus,
+.textarea:focus {
   outline: none;
   border-color: var(--border-focus);
 }
@@ -136,7 +138,9 @@ button {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Result Styles */
@@ -182,16 +186,16 @@ button {
   html {
     font-size: 15px;
   }
-  
+
   .container {
     padding: 0.75rem;
   }
-  
+
   .card {
     padding: 1rem;
     border-radius: 12px;
   }
-  
+
   .btn {
     width: 100%;
     padding: 1rem;
@@ -201,4 +205,84 @@ button {
 /* KaTeX overrides for dark mode */
 .katex {
   color: var(--text-primary);
+}
+
+/* Markdown content styles */
+.markdown-content {
+  font-size: 1rem;
+  line-height: 1.8;
+}
+
+.markdown-content p {
+  margin-bottom: 1rem;
+}
+
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3,
+.markdown-content h4 {
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.markdown-content ul,
+.markdown-content ol {
+  margin-left: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.markdown-content li {
+  margin-bottom: 0.5rem;
+}
+
+.markdown-content strong {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.markdown-content code {
+  background: var(--bg-input);
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  font-family: 'Fira Code', monospace;
+  font-size: 0.9em;
+}
+
+.markdown-content pre {
+  background: var(--bg-input);
+  padding: 1rem;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin-bottom: 1rem;
+}
+
+.markdown-content blockquote {
+  border-left: 3px solid var(--accent);
+  padding-left: 1rem;
+  margin: 1rem 0;
+  color: var(--text-secondary);
+}
+
+/* KaTeX math styling */
+.markdown-content .katex-display {
+  margin: 1rem 0;
+  padding: 1rem;
+  background: var(--bg-input);
+  border-radius: 8px;
+  overflow-x: auto;
+}
+
+.markdown-content .katex {
+  font-size: 1.1em;
+}
+
+/* Ensure page scrolls properly */
+html,
+body {
+  overflow-x: hidden;
+  overflow-y: auto;
+  height: auto;
+  min-height: 100vh;
 }

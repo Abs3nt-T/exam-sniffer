@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import MarkdownRenderer from "@/components/MarkdownRenderer";
 
 interface QueryResult {
     success: boolean;
@@ -230,9 +231,9 @@ export default function Home() {
                         </div>
                     )}
 
-                    {/* Solution */}
+                    {/* Solution with LaTeX rendering */}
                     <div className="result-content">
-                        {result.solution}
+                        <MarkdownRenderer content={result.solution} />
                     </div>
 
                     {/* Sources */}
