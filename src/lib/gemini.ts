@@ -2,9 +2,9 @@ import { GoogleGenerativeAI, Part } from "@google/generative-ai";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
-// Model for text generation
+// Model for text generation (gemini-2.5-flash has available quota)
 export const model = genAI.getGenerativeModel({
-    model: "gemini-2.0-flash"
+    model: "gemini-2.5-flash"
 });
 
 // Model for embeddings
